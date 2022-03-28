@@ -1,0 +1,105 @@
+﻿**项目打包策略**
+
+打包策略：
+
+A：把整个目录打进一个ab
+
+B：把目录下的子目录中的资源打进子目录的ab中
+
+C：把整个目录拷贝到ab目录不打ab
+
+D：目录下的每一个资源打一个ab，不管是否重复
+
+E：目录下的每一个资源打一个ab，每个依赖也打成一个ab，去除重复
+
+F：图集的图片根据tag打ab，每个tag打一个ab
+
+G：lua打包，一个目录打成一个ab，可以选择是否编码，编码为.bytes文件，通过根据不同平台选择LuaEncoder目录下的对应编码器进去编码（利用py脚本语言执行脚本运行luajit-2.1编码器）。编码器在各种运行平台和目标平台的使用情况如下。
+
+H：lua打包，多个目录打成一个ab，会编码
+
+各种策略应用的项目目录情况：
+
+|策略|目录|筛选模式|特点|
+| :- | :- | :- | :- |
+|D|Assets/GameAssets/ui|(.asset)$|这类资源的特点是各个模块都有分布，数量多，1比1打ab策略有利于控制ab大小粒度，属于按类型和功能模块分组策略|
+||Assets/GameAssets/ui|(.prefab)$||
+||Assets/GameAssets/ui/animations|(.controller)$||
+||Assets/GameAssets/ui/materials|(.mat)$||
+||Assets/GameAssets/audio|(.ogg|.mp3|.wav)$||
+||Assets/GameAssets/audio/audiomixer|(.prefab)$||
+||Assets/GameAssets/live2dcharacter|(.prefab)$||
+||Assets/GameAssets/live2dcharacter|(^(?!.\*?(model))).+(.json|.bytes)$||
+||Assets/GameAssets/bigbg|(.jpg|.png)$||
+||Assets/GameAssets/font|(.ttf|.fontsettings)$||
+|C|Assets/GameAssets/movie|(.mp4)$|这类资源一般是配置文件，或者像是mp4这种游戏中用得比较少的资源文件|
+||Assets/GameAssets/config|(.txt|.png|.jpg)$||
+|A|Assets/GameAssets/shaders||全局常驻的文件|
+|E|Assets/GameAssets/scene/pj-g\_scene\_assets|.\*materials\_dynload.+(.mat)$|这类资源的引用比较复杂，材质贴图引用得多，有些资源需要动态加载，需要对依赖资源做去重处理。 场景、spine人物动画、特效属于这类。|
+||Assets/GameAssets/character|(.prefab)$||
+||Assets/GameAssets/language/[lang]/character|(.prefab)$||
+||Assets/GameAssets/effect|(.prefab)$||
+||Assets/GameAssets/language/[lang]/effect|(.prefab)$||
+||Assets/GameAssets/scene/pj-g\_scene\_prefab|(.\_p[\\d]{0,}.prefab|.\_stage.prefab)$||
+||Assets/GameAssets/language/[lang]/scene/pj-g\_scene\_prefab|(.\_p[\\d]{0,}.prefab|.\_stage.prefab)$||
+|F|Assets/AtlasSource||UI用的精灵图，需要根据自定义tag打图集，其实就是按功能模块分组策略|
+|G|Assets/aounity-framework/ToLua/Lua||lua文件根据模块打ab，属于按逻辑实体分组策略，类似于粒度比较大的模块，但代码文件也属于系统常驻类型，不宜分得太小粒度|
+||Assets/aounity-framework/Scripts/Lua/framework|||
+||Assets/aounity-framework/Scripts/Lua/frameworkext|||
+||Assets/Scripts/Lua/logic|||
+|H|<p>Assets/aounity-framework/Scripts/Lua/bootstrap</p><p></p><p>Assets/Scripts/Lua/bootstrap</p>||lua文件根据模块打ab，同一个模块多个目录打在一起|
+没有写明打包策略的多语言下的目录，说明跟对应其的公用目录的打包策略一致。
+
+编码器在各种运行平台和目标平台的使用：
+
+不同平台使用的编码器不同
+
+\==============================
+
+using luajit2.1.0-beta3.
+
+pc使用
+
+luajit64:   win, ios 64bit
+
+luajit32:   android 32bit
+
+mac使用
+
+编译命令
+
+luajit\_mac32 make CC="gcc -m32"
+
+luajit\_mac64 make XCFLAGS=-DLUAJIT\_ENABLE\_GC64
+
+luavm:	    macos using luac(for u5.x). 
+
+luajit\_mac64: win, ios 64bit
+
+luajit\_mac32: android 32bit
+
+以下文件mac需要执行权限
+
+luavm/luac
+
+luajit\_mac32/luajit
+
+luajit\_mac64/luajit
+
+注意：没有权限mac无法编译，导致打不出lua文件的ab，也没有报错提示
+
+其实研究ab分组策略就是研究资源依赖树实现资源加载最优的问题。
+
+ab分组策略原则参考：<https://zhuanlan.zhihu.com/p/91926428>
+
+**build package**
+
+项目构建包逻辑原理很简单，前面处理和准备好参数和数据，传递给BuildPipeline.BuildAssetBundles方法构建ab。
+
+面板参数解析：
+
+isEncodeLua：是否时候luajit-2.1编码lua文件成字节码。
+
+isForceRebuild：BuildAssetBundleOptions.ForceRebuildAssetBundle参数，强制重打ab，即使Asset没有更改。
+
+isOnlyBuildLua：是否只打lua ab。√了就不会打其他资源ab，在调试真机时候更改lua代码进行调试会很方便。
