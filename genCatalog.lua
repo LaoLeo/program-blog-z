@@ -130,7 +130,7 @@ end
 
 function genMdLink(title, path)
     -- print("生成Link: "..string.format("[%s](%s)\n", title, path))
-    table.insert(Contents, string.format("* [%s](%s)", urlSpaceEncode(title), urlSpaceEncode(path)))
+    table.insert(Contents, string.format("* [%s](%s)", title, urlSpaceEncode(path)))
 end
 
 function main()
