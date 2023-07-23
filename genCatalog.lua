@@ -20,6 +20,43 @@ function string.split(input, delimiter)
     return arr
 end
 
+function urlSpaceEncode(s)
+    return string.replace(s, " ", "%20")
+end
+
+-- 字符串替换【不执行模式匹配】
+-- s       源字符串
+-- pattern 匹配字符串
+-- repl    替换字符串
+--
+-- 成功返回替换后的字符串，失败返回源字符串
+function string.replace(s, pattern, repl)
+    local i,j = string.find(s, pattern, 1, true)
+    if i and j then
+        local ret = {}
+        local start = 1
+        while i and j do
+            table.insert(ret, string.sub(s, start, i - 1))
+            table.insert(ret, repl)
+            start = j + 1
+            i,j = string.find(s, pattern, start, true)
+        end
+        table.insert(ret, string.sub(s, start))
+        return table.concat(ret)
+    end
+    return s
+end
+
+-- local function urlEncode(s)  
+--     s = string.gsub(s, "([^%w%.%- ])", function(c) return string.format("%%%02X", string.byte(c)) end)  
+--    return string.gsub(s, " ", "+")  
+-- end  
+
+-- local function urlDecode(s)  
+--    s = string.gsub(s, '%%(%x%x)', function(h) return string.char(tonumber(h, 16)) end)  
+--    return s  
+-- end 
+
 function genFilePaths(rootPath, paths, filter)
     paths = paths or {}
     for entry in lfs.dir(rootPath) do
@@ -93,7 +130,7 @@ end
 
 function genMdLink(title, path)
     -- print("生成Link: "..string.format("[%s](%s)\n", title, path))
-    table.insert(Contents, string.format("* [%s](%s)", title, path))
+    table.insert(Contents, string.format("* [%s](%s)", urlSpaceEncode(title), urlSpaceEncode(path)))
 end
 
 function main()
