@@ -1,0 +1,114 @@
+require "io"
+require "lfs"
+
+local Contents = {}
+
+---拆分字符串
+---@param str string 被拆分的源字符串
+---@param sep string 拆分的
+function string.split(input, delimiter)
+    input = tostring(input)
+    delimiter = tostring(delimiter)
+    if (delimiter=='') then return false end
+    local pos,arr = 0, {}
+    -- for each divider found
+    for st,sp in function() return string.find(input, delimiter, pos, true) end do
+        table.insert(arr, string.sub(input, pos, st - 1))
+        pos = sp + 1
+    end
+    table.insert(arr, string.sub(input, pos))
+    return arr
+end
+
+function genFilePaths(rootPath, paths, filter)
+    paths = paths or {}
+    for entry in lfs.dir(rootPath) do
+        if entry ~= '.' and entry ~= '..' then
+            local path = rootPath .. '/' .. entry
+            local attr = lfs.attributes(path)
+            assert(type(attr) == 'table')
+
+            if attr.mode == 'directory' then
+                genFilePaths(path, paths, filter)
+            elseif filter  then
+                if filter(path) then
+                    table.insert(paths, path)
+                end
+            else
+                table.insert(paths, path)
+            end
+        end
+    end
+
+    return paths
+end
+
+function isMdFile(path)
+    local ext = path:sub(-2)
+    return ext == 'md'
+end
+
+function writeFile(fileName, contentTb, mode)
+    if fileName==nil then return end
+
+    mode = mode or "w"
+    local file = io.open(fileName, mode)
+    if contentTb~=nil then
+        -- for i,str in ipairs(contentTb) do
+        --     file:write(str)
+        -- end
+        file:write(table.concat(contentTb, "\n"))
+    end
+    io.flush()
+    io.close(file)
+end
+
+function pathsFormat(paths, genTitle, genMdLink)
+    local dict,record = {},{}
+    for _,path in ipairs(paths) do
+        local temps = string.split(path, '/')
+        local curr,len = dict,#temps
+        if not record[temps[2]] and len>2 then
+            genTitle(temps[2])
+            record[temps[2]] = 1
+        end
+        
+        -- for i=2,len-1 do
+        --     -- print(temps[i])
+        --     if not curr[temps[i]] then
+        --         curr[temps[i]] = {}
+        --     end
+        --     curr = curr[temps[i]]
+        -- end
+        genMdLink(temps[len], path)
+        -- table.insert(curr, temps[len])
+    end
+    return dict
+end
+
+function genTitle(title)
+    -- print("生成Title: ".."###"..title.."\n")
+    table.insert(Contents, "### "..title)
+end
+
+function genMdLink(title, path)
+    -- print("生成Link: "..string.format("[%s](%s)\n", title, path))
+    table.insert(Contents, string.format("* [%s](%s)", title, path))
+end
+
+function main()
+    table.insert(Contents, "# program-blog-z")
+    table.insert(Contents, "程序生涯笔记、代码集、博客。")
+    table.insert(Contents, "## 目录")
+
+    local rootPath = '.'
+    local mdFilePaths = genFilePaths(rootPath, nil, isMdFile)
+
+    pathsFormat(mdFilePaths, genTitle, genMdLink)
+    writeFile("README.md", Contents)
+end
+
+main()
+
+
+
